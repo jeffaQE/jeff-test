@@ -1,136 +1,114 @@
-import React, { act } from 'react';
+import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { rest } from 'msw';
-import { setupServer } from 'msw/node';
 import App from '../App';
 
-// Mock server to intercept API requests
-const server = setupServer(
-  // GET /api/items handler
-  rest.get('/api/items', (req, res, ctx) => {
-    return res(
-      ctx.status(200),
-      ctx.json([
-        { id: 1, name: 'Test Item 1', created_at: '2023-01-01T00:00:00.000Z' },
-        { id: 2, name: 'Test Item 2', created_at: '2023-01-02T00:00:00.000Z' },
-      ])
-    );
-  }),
-  
-  // POST /api/items handler
-  rest.post('/api/items', (req, res, ctx) => {
-    const { name } = req.body;
-    
-    if (!name || name.trim() === '') {
-      return res(
-        ctx.status(400),
-        ctx.json({ error: 'Item name is required' })
-      );
-    }
-    
-    return res(
-      ctx.status(201),
-      ctx.json({
-        id: 3,
-        name,
-        created_at: new Date().toISOString(),
-      })
-    );
-  })
-);
-
-// Setup and teardown for the mock server
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+// Mock fetch
+global.fetch = jest.fn();
 
 describe('App Component', () => {
-  test('renders the header', async () => {
-    await act(async () => {
-      render(<App />);
-    });
-    expect(screen.getByText('React Frontend with Node Backend')).toBeInTheDocument();
-    expect(screen.getByText('Connected to in-memory database')).toBeInTheDocument();
+  beforeEach(() => {
+    fetch.mockClear();
   });
 
-  test('loads and displays items', async () => {
-    await act(async () => {
-      render(<App />);
+  it('renders the header', () => {
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
     });
+
+    render(<App />);
     
-    // Initially shows loading state
-    expect(screen.getByText('Loading data...')).toBeInTheDocument();
+    expect(screen.getByText('To Do App')).toBeInTheDocument();
+    expect(screen.getByText('Keep track of your tasks')).toBeInTheDocument();
+  });
+
+  it('displays loading state initially', () => {
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
+    });
+
+    render(<App />);
     
-    // Wait for items to load
+    expect(screen.getByLabelText('Loading tasks')).toBeInTheDocument();
+  });
+
+  it('loads and displays tasks', async () => {
+    const mockTasks = [
+      {
+        id: 1,
+        name: 'Test Task 1',
+        description: 'Description 1',
+        due_date: null,
+        priority: 3,
+        completed: 0,
+      },
+      {
+        id: 2,
+        name: 'Test Task 2',
+        description: 'Description 2',
+        due_date: '2025-12-10',
+        priority: 1,
+        completed: 0,
+      },
+    ];
+
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockTasks,
+    });
+
+    render(<App />);
+
     await waitFor(() => {
-      expect(screen.getByText('Test Item 1')).toBeInTheDocument();
-      expect(screen.getByText('Test Item 2')).toBeInTheDocument();
+      expect(screen.getByText('Test Task 1')).toBeInTheDocument();
+      expect(screen.getByText('Test Task 2')).toBeInTheDocument();
     });
   });
 
-  test('adds a new item', async () => {
+  it('shows empty state when no tasks', async () => {
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/no tasks found/i)).toBeInTheDocument();
+    });
+  });
+
+  it('displays error message on fetch failure', async () => {
+    fetch.mockRejectedValueOnce(new Error('Network error'));
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/failed to fetch data/i)).toBeInTheDocument();
+    });
+  });
+
+  it('opens add form when add button clicked', async () => {
     const user = userEvent.setup();
     
-    await act(async () => {
-      render(<App />);
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
     });
-    
-    // Wait for items to load
-    await waitFor(() => {
-      expect(screen.queryByText('Loading data...')).not.toBeInTheDocument();
-    });
-    
-    // Fill in the form and submit
-    const input = screen.getByPlaceholderText('Enter item name');
-    await act(async () => {
-      await user.type(input, 'New Test Item');
-    });
-    
-    const submitButton = screen.getByText('Add Item');
-    await act(async () => {
-      await user.click(submitButton);
-    });
-    
-    // Check that the new item appears
-    await waitFor(() => {
-      expect(screen.getByText('New Test Item')).toBeInTheDocument();
-    });
-  });
 
-  test('handles API error', async () => {
-    // Override the default handler to simulate an error
-    server.use(
-      rest.get('/api/items', (req, res, ctx) => {
-        return res(ctx.status(500));
-      })
-    );
-    
-    await act(async () => {
-      render(<App />);
-    });
-    
-    // Wait for error message
-    await waitFor(() => {
-      expect(screen.getByText(/Failed to fetch data/)).toBeInTheDocument();
-    });
-  });
+    render(<App />);
 
-  test('shows empty state when no items', async () => {
-    // Override the default handler to return empty array
-    server.use(
-      rest.get('/api/items', (req, res, ctx) => {
-        return res(ctx.status(200), ctx.json([]));
-      })
-    );
-    
-    await act(async () => {
-      render(<App />);
-    });
-    
-    // Wait for empty state message
     await waitFor(() => {
-      expect(screen.getByText('No items found. Add some!')).toBeInTheDocument();
+      expect(screen.queryByLabelText('Loading tasks')).not.toBeInTheDocument();
+    });
+
+    const addButton = screen.getByRole('button', { name: /add new task/i });
+    await user.click(addButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Add New Task')).toBeInTheDocument();
     });
   });
 });

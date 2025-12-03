@@ -1,20 +1,30 @@
 import React, { useState, useEffect } from 'react';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { Container, Box, Typography, Button, Alert, CircularProgress } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import theme from './theme';
+import TodoList from './components/TodoList';
+import TodoForm from './components/TodoForm';
 import './App.css';
 
 function App() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [newItem, setNewItem] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState('DESC');
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [sortBy, sortOrder]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/items');
+      const response = await fetch(`/api/items?sort=${sortBy}&order=${sortOrder}`);
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
@@ -29,98 +39,181 @@ function App() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!newItem.trim()) return;
-
+  const handleAddTask = async (taskData) => {
     try {
       const response = await fetch('/api/items', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name: newItem }),
+        body: JSON.stringify(taskData),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to add item');
+        throw new Error('Failed to add task');
       }
 
-      const result = await response.json();
-      setData([...data, result]);
-      setNewItem('');
+      await fetchData();
+      setError(null);
     } catch (err) {
-      setError('Error adding item: ' + err.message);
-      console.error('Error adding item:', err);
+      setError('Error adding task: ' + err.message);
+      console.error('Error adding task:', err);
     }
   };
 
-  const handleDelete = async (itemId) => {
+  const handleEditTask = async (taskData) => {
     try {
-      const response = await fetch(`/api/items/${itemId}`, {
+      const response = await fetch(`/api/items/${editingTask.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(taskData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update task');
+      }
+
+      await fetchData();
+      setEditingTask(null);
+      setError(null);
+    } catch (err) {
+      setError('Error updating task: ' + err.message);
+      console.error('Error updating task:', err);
+    }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    try {
+      const response = await fetch(`/api/items/${taskId}`, {
         method: 'DELETE',
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete item');
+        throw new Error('Failed to delete task');
       }
 
-      setData(data.filter(item => item.id !== itemId));
+      setData(data.filter(item => item.id !== taskId));
       setError(null);
     } catch (err) {
-      setError('Error deleting item: ' + err.message);
-      console.error('Error deleting item:', err);
+      setError('Error deleting task: ' + err.message);
+      console.error('Error deleting task:', err);
+    }
+  };
+
+  const handleToggleComplete = async (taskId) => {
+    try {
+      const response = await fetch(`/api/items/${taskId}/complete`, {
+        method: 'PATCH',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to toggle task completion');
+      }
+
+      const updatedTask = await response.json();
+      setData(data.map(item => item.id === taskId ? updatedTask : item));
+      setError(null);
+    } catch (err) {
+      setError('Error toggling task: ' + err.message);
+      console.error('Error toggling task:', err);
+    }
+  };
+
+  const handleOpenAddForm = () => {
+    setEditingTask(null);
+    setFormOpen(true);
+  };
+
+  const handleOpenEditForm = (task) => {
+    setEditingTask(task);
+    setFormOpen(true);
+  };
+
+  const handleCloseForm = () => {
+    setFormOpen(false);
+    setEditingTask(null);
+  };
+
+  const handleFormSubmit = (taskData) => {
+    if (editingTask) {
+      handleEditTask(taskData);
+    } else {
+      handleAddTask(taskData);
     }
   };
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>To Do App</h1>
-        <p>Keep track of your tasks</p>
-      </header>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Box
+        component="main"
+        sx={{
+          minHeight: '100vh',
+          backgroundColor: 'background.default',
+          py: 4,
+        }}
+      >
+        <Container maxWidth="md">
+          <Box sx={{ mb: 4, textAlign: 'center' }}>
+            <Typography
+              variant="h3"
+              component="h1"
+              sx={{ color: 'primary.main', fontWeight: 'bold', mb: 1 }}
+            >
+              To Do App
+            </Typography>
+            <Typography variant="subtitle1" color="text.secondary">
+              Keep track of your tasks
+            </Typography>
+          </Box>
 
-      <main>
-        <section className="add-item-section">
-          <h2>Add New Item</h2>
-          <form onSubmit={handleSubmit}>
-            <input
-              type="text"
-              value={newItem}
-              onChange={(e) => setNewItem(e.target.value)}
-              placeholder="Enter item name"
-            />
-            <button type="submit">Add Item</button>
-          </form>
-        </section>
+          <Box sx={{ mb: 3 }}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleOpenAddForm}
+              fullWidth
+              sx={{ height: 48 }}
+              aria-label="Add new task"
+            >
+              Add New Task
+            </Button>
+          </Box>
 
-        <section className="items-section">
-          <h2>Items from Database</h2>
-          {loading && <p>Loading data...</p>}
-          {error && <p className="error">{error}</p>}
-          {!loading && !error && (
-            <ul>
-              {data.length > 0 ? (
-                data.map((item) => (
-                  <li key={item.id}>
-                    <span>{item.name}</span>
-                    <button 
-                      onClick={() => handleDelete(item.id)}
-                      className="delete-btn"
-                      type="button"
-                    >
-                      Delete
-                    </button>
-                  </li>
-                ))
-              ) : (
-                <p>No items found. Add some!</p>
-              )}
-            </ul>
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+              {error}
+            </Alert>
           )}
-        </section>
-      </main>
-    </div>
+
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+              <CircularProgress aria-label="Loading tasks" />
+            </Box>
+          ) : (
+            <TodoList
+              tasks={data}
+              onEdit={handleOpenEditForm}
+              onDelete={handleDeleteTask}
+              onToggleComplete={handleToggleComplete}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+              sortOrder={sortOrder}
+              onSortOrderChange={setSortOrder}
+            />
+          )}
+
+          <TodoForm
+            open={formOpen}
+            onClose={handleCloseForm}
+            onSubmit={handleFormSubmit}
+            initialData={editingTask}
+          />
+        </Container>
+      </Box>
+    </ThemeProvider>
   );
 }
 
