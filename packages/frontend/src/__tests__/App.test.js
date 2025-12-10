@@ -83,8 +83,9 @@ describe('App Component', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Test Task 1')).toBeInTheDocument();
-      expect(screen.getByText('Test Task 2')).toBeInTheDocument();
     });
+    
+    expect(screen.getByText('Test Task 2')).toBeInTheDocument();
   });
 
   it('shows empty state when no tasks', async () => {
