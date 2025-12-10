@@ -65,7 +65,7 @@ const TodoItem = ({ task, onEdit, onDelete, onToggleComplete }) => {
             edge="end"
             aria-label={`Edit task: ${task.name}`}
             onClick={() => onEdit(task)}
-            disabled={task.completed}
+            disabled={task.completed === 1}
           >
             <EditIcon />
           </IconButton>

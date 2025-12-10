@@ -162,7 +162,7 @@ function App() {
               component="h1"
               sx={{ color: 'primary.main', fontWeight: 'bold', mb: 1 }}
             >
-              Jeff's Ultimate Todo list!
+              Jeff's TODO List
             </Typography>
             <Typography variant="subtitle1" color="text.secondary">
               Keep track of your tasks

@@ -39,7 +39,7 @@ describe('App Component', () => {
 
     render(<App />);
     
-    expect(screen.getByText("Jeff's Ultimate Todo list!")).toBeInTheDocument();
+    expect(screen.getByText("Jeff's TODO List")).toBeInTheDocument();
     expect(screen.getByText('Keep track of your tasks')).toBeInTheDocument();
   });
 
