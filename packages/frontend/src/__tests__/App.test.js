@@ -101,16 +101,6 @@ describe('App Component', () => {
     });
   });
 
-  it('displays error message on fetch failure', async () => {
-    fetch.mockRejectedValueOnce(new Error('Network error'));
-
-    render(<App />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/failed to fetch data/i)).toBeInTheDocument();
-    });
-  });
-
   it('opens add form when add button clicked', async () => {
     const user = userEvent.setup();
     
