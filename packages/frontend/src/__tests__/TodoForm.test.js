@@ -3,6 +3,26 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TodoForm from '../components/TodoForm';
 
+// Mock the MUI date picker components to avoid date-fns version issues
+jest.mock('@mui/x-date-pickers/DatePicker', () => ({
+  DatePicker: ({ label, value, onChange }) => (
+    <input
+      aria-label={label}
+      type="date"
+      value={value ? value.toISOString().split('T')[0] : ''}
+      onChange={(e) => onChange(e.target.value ? new Date(e.target.value) : null)}
+    />
+  ),
+}));
+
+jest.mock('@mui/x-date-pickers/LocalizationProvider', () => ({
+  LocalizationProvider: ({ children }) => children,
+}));
+
+jest.mock('@mui/x-date-pickers/AdapterDateFns', () => ({
+  AdapterDateFns: jest.fn(),
+}));
+
 describe('TodoForm Component', () => {
   const mockOnClose = jest.fn();
   const mockOnSubmit = jest.fn();
@@ -83,16 +103,19 @@ describe('TodoForm Component', () => {
   });
 
   it('should require task name to submit', async () => {
+    const user = userEvent.setup();
+    
     render(
       <TodoForm open={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />
     );
 
+    // Leave name field empty and try to submit
     const submitButton = screen.getByRole('button', { name: /add/i });
-    fireEvent.click(submitButton);
+    await user.click(submitButton);
 
-    await waitFor(() => {
-      expect(mockOnSubmit).not.toHaveBeenCalled();
-    });
+    // HTML5 validation should prevent form submission
+    // The form won't submit without a name due to the 'required' attribute
+    expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 
   it('should handle priority selection', async () => {

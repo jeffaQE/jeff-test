@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Container, Box, Typography, Button, Alert, CircularProgress } from '@mui/material';
@@ -17,11 +17,7 @@ function App() {
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('DESC');
 
-  useEffect(() => {
-    fetchData();
-  }, [sortBy, sortOrder]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/items?sort=${sortBy}&order=${sortOrder}`);
@@ -37,7 +33,11 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sortBy, sortOrder]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleAddTask = async (taskData) => {
     try {

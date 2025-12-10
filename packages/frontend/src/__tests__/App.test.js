@@ -3,6 +3,26 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '../App';
 
+// Mock the MUI date picker components to avoid date-fns version issues
+jest.mock('@mui/x-date-pickers/DatePicker', () => ({
+  DatePicker: ({ label, value, onChange }) => (
+    <input
+      aria-label={label}
+      type="date"
+      value={value ? value.toISOString().split('T')[0] : ''}
+      onChange={(e) => onChange(e.target.value ? new Date(e.target.value) : null)}
+    />
+  ),
+}));
+
+jest.mock('@mui/x-date-pickers/LocalizationProvider', () => ({
+  LocalizationProvider: ({ children }) => children,
+}));
+
+jest.mock('@mui/x-date-pickers/AdapterDateFns', () => ({
+  AdapterDateFns: jest.fn(),
+}));
+
 // Mock fetch
 global.fetch = jest.fn();
 
@@ -108,7 +128,8 @@ describe('App Component', () => {
     await user.click(addButton);
 
     await waitFor(() => {
-      expect(screen.getByText('Add New Task')).toBeInTheDocument();
+      // Check for dialog title using heading role
+      expect(screen.getByRole('heading', { name: /add new task/i })).toBeInTheDocument();
     });
   });
 });

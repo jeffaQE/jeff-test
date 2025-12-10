@@ -41,6 +41,11 @@ const TodoForm = ({ open, onClose, onSubmit, initialData = null }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    // Validate required field
+    if (!formData.name.trim()) {
+      return;
+    }
+    
     const submitData = {
       ...formData,
       due_date: formData.due_date ? formData.due_date.toISOString().split('T')[0] : null,
